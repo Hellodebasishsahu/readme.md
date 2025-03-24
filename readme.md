@@ -245,10 +245,6 @@ These metrics are used to:
 *   **Q: How is authentication data secured?**
     *   A: Authentication data is stored securely in Redis/GCS, protected by encryption and access controls.
 
-## 12. Conclusion
-
-This architecture provides a scalable and maintainable solution for WhatsApp integration. By offloading resource-intensive tasks to containerized worker processes, the monolith can focus on core functionality, improving overall system performance and reliability. The dynamic scaling strategy ensures optimal resource utilization.
-
 ---
 
-*Document Version: 1.0 | Last Updated: [24 mar 2025]*
+Last Updated: [24 mar 2025]*
