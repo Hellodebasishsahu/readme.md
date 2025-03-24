@@ -1,124 +1,183 @@
 # WhatsApp Integration Platform Architecture
 
-## Executive Summary
+## 1. Introduction
 
-This document outlines the architecture for our scalable WhatsApp Integration Platform, designed to handle multiple concurrent WhatsApp sessions while maintaining reliability and performance. The system employs a Master-Worker pattern to efficiently distribute workloads and optimize resource utilization.
+This document outlines the architecture of a WhatsApp Integration Platform designed for scalability, reliability, and maintainability. The architecture is structured in two primary stages: a monolith responsible for core functionality and a set of worker processes handling resource-intensive tasks.
 
-## System Overview
+## 2. Goals
 
-The WhatsApp Integration Platform provides businesses with capabilities to:
+The primary goals of this architecture are to:
 
-- Manage multiple WhatsApp business accounts simultaneously
-- Send and receive messages at scale
-- Manage group memberships and interactions
-- Schedule and broadcast messages to multiple recipients
-- Extract analytics and reporting data
-- Maintain session persistence across system restarts
+*   Provide a scalable solution for managing multiple WhatsApp sessions.
+*   Ensure high availability and fault tolerance.
+*   Optimize resource utilization.
+*   Maintain a clear separation of concerns for easier development and maintenance.
 
-## Architecture Design
+## 3. Architecture Overview
 
-Our architecture implements a Master-Worker pattern with centralized session management:
+The platform is divided into two main components:
 
-![Architecture Diagram](https://mermaid.ink/img/pako:eNp1kc1uwjAQhF_F2lMrEVIIoYEeKiRQiVZUKnBDvqwTq_5Ze0MR4t1rkwYEqOxpd-bbGXu84wyVRg6ctkpvYN2ZGm2EqGTZEsxyVBQ-XpuGPCZvdWGdwojhHWnUFU5vBg3cW2fZGPWKn6hHrBQRcV0qIq93ePFZlqEi-Ue4C6XNztGe10SEQtXkRnJZNQNtfnEKbmVsIafFlNIjuQA3mkxm68XyXpDAQiLZBm1B6gIbMpVCwdnpJ1rXlTpjBqX1TXEJVz7jtMYD5oXcobcR3MwZmf0f4jRIcTYeRYzTdhikJ-FiHGafTDyjMbFQIRvzGqOYtXn9bP-d0QiznLVGdTkZrfodO5W6Qd9wW4XWHDiBqQ4tfnGbN965ylRoXz3HRnVBbTiYOqsxeB-jV2VO3VGpUHGZB7TnXgD-1qoc?type=png)
+1.  **Monolith:** Handles core API requests, session management, and task orchestration.
+2.  **Worker Processes:** Offload resource-intensive tasks such as broadcasting, data scraping, and media processing.
 
-### Key Components
+## 4. Component Details
 
-1. **Master Process**
-   - Handles API requests and client connections
-   - Manages session initialization and authentication
-   - Orchestrates task distribution
-   - Maintains system health monitoring
-   
-2. **Worker Processes**
-   - Execute resource-intensive operations
-   - Manage WhatsApp message processing
-   - Handle media operations
-   - Process broadcasts and scheduled messages
-   - Perform data extraction and analytics
-   
-3. **Message Queue**
-   - Ensures reliable task delivery between Master and Workers
-   - Provides load balancing and task prioritization
-   - Enables asynchronous operation processing
-   - Maintains persistence during system failures
-   
-4. **Session Storage**
-   - Stores WhatsApp authentication data securely
-   - Enables session restoration after system restart
-   - Allows workers to access necessary session credentials
-   - Maintains encryption of sensitive authentication data
+### 4.1 Monolith
 
-5. **Instance Manager**
-   - Monitors system resource utilization
-   - Scales worker processes based on demand
-   - Ensures optimal session distribution
-   - Maintains session affinity to workers
+The monolith is responsible for the core functionality of the platform.
 
-## Scaling Strategy
+*   **Responsibilities:**
+    *   Handles incoming API requests from clients.
+    *   Manages WhatsApp session initialization and termination.
+    *   Orchestrates cron jobs for data gathering.
+    *   Enqueues resource-intensive tasks to a message queue.
+    *   Manages session state and authentication.
+    *   Provides API endpoints for clients to interact with the platform.
+*   **Technology:** Node.js, Express.js
+*   **Key Modules:**
+    *   API Handling: Manages incoming requests and responses.
+    *   Session Management: Handles session creation, termination, and authentication.
+    *   Task Orchestration: Enqueues tasks to the message queue.
+    *   Monitoring: Tracks system health and performance.
 
-The platform scales dynamically based on:
+### 4.2 Worker Processes
 
-- Number of active WhatsApp sessions
-- Message throughput requirements
-- Queue depth of pending operations
-- System resource utilization (CPU, memory)
+Worker processes are responsible for executing resource-intensive tasks.
 
-### Resource Allocation Guidelines
+*   **Responsibilities:**
+    *   Consume tasks from the message queue.
+    *   Perform broadcasting, data scraping, and media processing.
+    *   Operate independently and can be scaled based on demand.
+    *   Require a valid WhatsApp session to be initialized before processing tasks.
+*   **Technology:** Node.js with WhatsApp Web.js
+*   **Key Modules:**
+    *   Task Consumption: Retrieves tasks from the message queue.
+    *   WhatsApp Interaction: Interacts with WhatsApp Web.js to perform actions.
+    *   Data Processing: Handles data scraping, media processing, and other intensive tasks.
 
-| Resource Type | Allocation |
-|---------------|------------|
-| Memory | 4-8 sessions per 4GB RAM |
-| CPU | 4-8 sessions per 2 vCPUs |
-| High-volume accounts | Dedicated resources |
-| Broadcast operations | Priority queue allocation |
+### 4.3 Message Queue
 
-### Scaling Triggers
+The message queue facilitates asynchronous communication between the monolith and worker processes.
 
-The system automatically scales based on these metrics:
+*   **Responsibilities:**
+    *   Provides asynchronous communication between the Monolith and Worker Processes.
+    *   Ensures task persistence and delivery guarantees.
+    *   Enables load balancing across available workers.
+*   **Technology:** RabbitMQ or Kafka
 
-- Queue depth exceeding threshold
-- Average CPU utilization > 70%
-- Memory utilization > 80%
-- Session/worker ratio exceeding optimal levels
+### 4.4 Authentication Data Storage
 
-## Implementation Phases
+Authentication data storage securely stores the authentication data for each WhatsApp session.
 
-### Phase 1: Task Queue Integration
-- Implement message broker for task distribution
-- Create task definitions for different operations
-- Maintain in-process execution initially
+*   **Responsibilities:**
+    *   Securely stores the authentication data (session data) for each WhatsApp session.
+    *   Provides fast access to the authentication data for worker processes.
+*   **Technology:** Redis (recommended)
 
-### Phase 2: Worker Pool Specialization
-- Create specialized worker pools (broadcasting, scraping)
-- Implement session affinity within process
-- Add detailed metrics collection
+## 5. Architecture Diagram
 
-### Phase 3: Distributed Workers
-- Deploy workers as separate processes/containers
-- Implement secure session sharing
-- Deploy auto-scaling infrastructure
+```
++---------------------+      +---------------------+      +---------------------+
+|   Client (Frontend)   |----->|     API Gateway     |----->|     Monolith        |
++---------------------+      +---------------------+      +---------------------+
+                            ^                               +---------------------+
+                            |                               | * API Handling      |
+                            |                               | * Session Mgmt      |
+                            |                               | * Enqueue Tasks     |
+                            |                               +---------------------+
+                            |                                       |
+                            |                                       V
+                            |      +---------------------+      +---------------------+
+                            ------->|     Message Queue   |----->|    Worker Process   |
+                                   |     (RabbitMQ/Kafka)|      +---------------------+
+                                   +---------------------+      | * Task Execution    |
+                                                                | * WhatsApp Actions  |
+                                                                +---------------------+
+                                                                       ^
+                                                                       |
+                                     +---------------------+      +---------------------+
+                                     |   Session Storage   |----->|   Redis (Auth Data)|
+                                     +---------------------+      +---------------------+
+                                     | * Session Data      |
+                                     +---------------------+
+```
 
-## Security Considerations
+## 6. Scaling Strategy
 
-- End-to-end encryption for all system communications
-- Secure storage of authentication credentials
-- Role-based access control for administrative functions
-- Regular security audits and penetration testing
-- Compliance with WhatsApp's terms of service and API policies
+### 6.1 Monolith Scaling
 
-## Monitoring & Observability
+The monolith can be scaled vertically (increase CPU, memory) as needed. Optimize code for performance and caching.
 
-The platform includes comprehensive monitoring:
+### 6.2 Worker Scaling
 
-- Real-time dashboard of system performance
-- Per-session metrics and health status
-- Worker load and queue depth visualization
-- Automated alerting for system anomalies
-- Detailed logging for troubleshooting
+Worker processes should be scaled according to these guidelines for optimal performance:
 
-## Conclusion
+*   **Memory-based allocation**: 4-8 WhatsApp sessions per 4GB RAM (each session uses ~150-300MB)
+*   **CPU-based allocation**: 4-8 sessions per 2 vCPUs
+*   **Activity-based**: Fewer sessions for high-message-volume accounts
+*   **Session type consideration**: Schedule more demanding broadcast sessions on dedicated workers
 
-This architecture provides a robust foundation for scaling WhatsApp operations while maintaining performance and reliability. The Master-Worker pattern with dynamic resource allocation ensures efficient operation even under varying load conditions.
+### 6.3 Dynamic Scaling Triggers
+
+The system should automatically scale based on these metrics:
+
+*   Message queue depth exceeding a threshold.
+*   Average CPU utilization of worker processes exceeding 70%.
+*   Memory utilization of worker processes exceeding 80%.
+
+## 7. Implementation Phases
+
+### Phase 1: Task Queue and Worker Extraction
+
+1.  Implement a message broker for task distribution.
+2.  Extract resource-intensive tasks to worker processes.
+3.  Maintain session affinity within the monolith.
+
+### Phase 2: Dynamic Worker Scaling
+
+1.  Implement dynamic scaling for worker processes based on system metrics.
+2.  Implement Redis for session sharing.
+3.  Deploy monitoring and autoscaling infrastructure.
+
+## 8. Authentication Data Management
+
+*   Store WhatsApp session files in Redis with TTL
+*   Implement secure retrieval by workers with session-specific keys
+*   Implement versioning to detect outdated session data
+*   Perform periodic backup to persistent storage
+
+## 9. Security Considerations
+
+*   All communication between components is encrypted.
+*   Access to Redis is protected by authentication and authorization mechanisms.
+*   The authentication data is encrypted at rest and in transit.
+*   Regular security audits are conducted to identify and address vulnerabilities.
+
+## 10. Monitoring and Health Management
+
+Implement comprehensive monitoring to tune your scaling strategy:
+
+```javascript
+// Collect worker metrics periodically
+const workerMetrics = [
+  'activeSessionCount',
+  'memoryUsage',
+  'cpuUtilization',
+  'messageThroughput',
+  'queueDepth',
+  'responseLatency'
+];
+```
+
+Use these metrics to:
+1. Identify overloaded workers
+2. Detect session performance issues
+3. Optimize allocation strategy
+4. Predict scaling needs
+
+## 11. Conclusion
+
+This two-stage architecture provides a scalable and maintainable solution for WhatsApp integration. By offloading resource-intensive tasks to worker processes, the monolith can focus on core functionality, improving overall system performance and reliability.
 
 ---
 
