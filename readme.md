@@ -214,7 +214,58 @@ The pipeline consists of nine steps, fully automated using open-source tools and
 - **Purpose**: Ensures comprehensive coverage of unique topics.
 
 ---
+## Optional: Maximal Marginal Relevance (MMR) and Alternative Diversity Tools
 
+### Overview
+While the primary pipeline uses a **one-per-cluster** selection method to ensure each article covers a unique topic or event, **Maximal Marginal Relevance (MMR)** and similar diversity-aware tools offer an alternative approach for article selection. MMR balances **relevance** to the narrative seed (e.g., "Supreme Court vs Parliament") with **diversity** among selected articles, potentially improving the quality and representativeness of the output. This section explores MMR and comparable tools, their applicability to the pipeline, and trade-offs compared to one-per-cluster selection, addressing the goal of non-redundant topic coverage for LLM processing.
+
+### Maximal Marginal Relevance (MMR)
+MMR is a selection algorithm that iteratively chooses articles to maximize relevance to the query (narrative seed) while minimizing similarity to already-selected articles. It uses the following formula:
+
+\[
+\text{MMR} = \arg\max_{d_i \in D \setminus R} [\lambda \cdot \text{Sim}_1(d_i, q) - (1 - \lambda) \cdot \max_{d_j \in R} \text{Sim}_2(d_i, d_j)]
+\]
+
+- **\(d_i\)**: Candidate article.
+- **\(q\)**: Query (narrative seed).
+- **\(R\)**: Set of already-selected articles.
+- **\(\text{Sim}_1\)**: Similarity between article and query (e.g., cosine similarity of embeddings).
+- **\(\text{Sim}_2\)**: Similarity between articles.
+- **\(\lambda\)**: Trade-off parameter (0 ≤ \(\lambda\) ≤ 1, typically 0.5 for balance).
+
+#### Implementation
+- **Steps**:
+  1. Compute embeddings for the narrative seed and all articles using Sentence Transformers.
+  2. Initialize an empty set of selected articles.
+  3. Iteratively select the article with the highest MMR score until the desired number of articles is reached or candidates are exhausted.
+  4. Adjust \(\lambda\) to prioritize relevance (\(\lambda > 0.5\)) or diversity (\(\lambda < 0.5\)).
+- **Code Example**:
+  ```python
+  from sentence_transformers import SentenceTransformer
+  from sklearn.metrics.pairwise import cosine_similarity
+  import numpy as np
+
+  model = SentenceTransformer('all-MiniLM-L6-v2')
+  seed_embedding = model.encode([seed])[0]
+  article_embeddings = model.encode([a['text'][:1000] for a in topics])
+  selected = []
+  lambda_ = 0.5
+
+  while len(selected) < len(set(clusters) - {-1}) and len(selected) < len(topics):
+      scores = []
+      for i, emb in enumerate(article_embeddings):
+          if i not in selected:
+              relevance = cosine_similarity([emb], [seed_embedding])[0][0]
+              diversity = min([1 - cosine_similarity([emb], [article_embeddings[j]])[0][0] for j in selected], default=1)
+              score = lambda_ * relevance + (1 - lambda_) * diversity
+              scores.append((score, i))
+      if scores:
+          _, best_idx = max(scores)
+          selected.append(best_idx)
+
+  selected_articles = [topics[i] for i in selected]
+
+---
 ## Tools and Dependencies
 - **`pygooglenews`**: News collection ([pygooglenews](https://github.com/kotartemiy/pygooglenews)).
 - **Newspaper3k**: Text extraction ([Newspaper3k](https://newspaper.readthedocs.io/en/latest/)).
