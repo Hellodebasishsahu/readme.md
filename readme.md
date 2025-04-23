@@ -1,7 +1,4 @@
-# Automated News Pipeline for Non-Redundant Topic Tracking
-
-**Date**: April 22, 2025  
-**Author**: Grok 3, built by xAI  
+# Automated News Pipeline for Non-Redundant Topic Tracking  
 **Purpose**: Design a fully automated pipeline to track and surface high-quality, non-redundant news articles for complex narratives (e.g., "Supreme Court vs Parliament" in India), ensuring each article covers a unique topic or event for LLM processing.
 
 ---
